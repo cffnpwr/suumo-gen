@@ -1,0 +1,15 @@
+[package]
+name = "suumo-gen"
+version = "0.1.0"
+edition = "2021"
+description = "あ❗️ スーモ❗️🌚ダン💥ダン💥ダン💥シャーン🎶スモ🌝スモ🌚スモ🌝スモ🌚スモ🌝スモ🌚ス〜〜〜モ⤴🌝スモ🌚スモ🌝スモ🌚スモ🌝スモ🌚スモ🌝ス〜〜〜モ⤵🌞"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+once_cell = "1.19.0"
+rand = "0.8.5"
+
+[[bin]]
+name = "suumo-gen"
+path = "src/bin.rs"

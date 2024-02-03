@@ -1,0 +1,16 @@
+{
+    "name": "SUUMO Gennerator",
+    "dockerFile": "Dockerfile",
+    "workspaceFolder": "/workspace",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "vadimcn.vscode-lldb",
+                "Swellaby.rust-pack",
+                "yzhang.markdown-all-in-one",
+                "shd101wyy.markdown-preview-enhanced"
+            ]
+        }
+    }
+}
