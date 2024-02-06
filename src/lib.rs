@@ -40,6 +40,75 @@ impl Display for SuumoElement {
         }
     }
 }
+impl From<SuumoElement> for String {
+    fn from(s: SuumoElement) -> String {
+        s.to_string()
+    }
+}
+impl TryFrom<String> for SuumoElement {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<SuumoElement, String> {
+        match s.as_str() {
+            "あ❗️ スーモ❗️🌚" => Ok(Self::ASuumo),
+            "ダン💥" => Ok(Self::Dan),
+            "シャーン🎶" => Ok(Self::Shaan),
+            "スモ🌝" => Ok(Self::SumoFullMoon),
+            "スモ🌚" => Ok(Self::SumoNewMoon),
+            "ス〜〜〜モ⤴🌝" => Ok(Self::SuuuumoUp),
+            "ス〜〜〜モ⤵🌞" => Ok(Self::SuuuumoDown),
+            _ => Err(format!("Invalid string: {}", s)),
+        }
+    }
+}
+pub fn try_string_to_suumo_elements(value: String) -> Result<Vec<SuumoElement>, String> {
+    let mut result = Vec::new();
+    let mut chars = value.chars().peekable();
+    while let Some(&c) = chars.peek() {
+        match c {
+            'あ' => {
+                let string: String = chars.by_ref().take(10).collect();
+                let element = SuumoElement::try_from(string)
+                    .map_err(|_| format!("Invalid string: {}", value))?;
+                result.push(element);
+            }
+            'ダ' => {
+                let string: String = chars.by_ref().take(3).collect();
+                let element = SuumoElement::try_from(string)
+                    .map_err(|_| format!("Invalid string: {}", value))?;
+                result.push(element);
+            }
+            'シ' => {
+                let string: String = chars.by_ref().take(5).collect();
+                let element = SuumoElement::try_from(string)
+                    .map_err(|_| format!("Invalid string: {}", value))?;
+                result.push(element);
+            }
+            'ス' => {
+                let first = chars.next().unwrap();
+                let peek = chars.peek().ok_or(format!("Invalid string: {}", value))?;
+                let count = if peek == &'〜' {
+                    6
+                } else if peek == &'モ' {
+                    2
+                } else {
+                    return Err(format!("Invalid string: {}", value));
+                };
+                let string = format!(
+                    "{}{}",
+                    first,
+                    chars.by_ref().take(count).collect::<String>()
+                );
+                let element = SuumoElement::try_from(string)
+                    .map_err(|_| format!("Invalid string: {}", value))?;
+                result.push(element);
+            }
+            _ => return Err(format!("Invalid string: {}", value)),
+        }
+    }
+
+    Ok(result)
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum SuumoState {
@@ -174,12 +243,73 @@ impl SuumoState {
             }
         }
     }
+
+    pub fn collect_to_string(&mut self) -> String {
+        let mut result = String::new();
+        for (_, element) in self {
+            result.push_str(&element.to_string());
+        }
+
+        result
+    }
+
+    pub fn collect_to_string_nth(&mut self, n: usize) -> String {
+        let mut result = String::new();
+        for _ in 0..n {
+            if let Some((_, element)) = self.next() {
+                result.push_str(&element.to_string());
+            } else {
+                break;
+            }
+        }
+
+        result
+    }
+
+    pub fn collect_to_string_with_suumo_elements(
+        &mut self,
+        elements: impl IntoIterator<Item = SuumoElement>,
+    ) -> String {
+        let mut result = String::new();
+        for element in elements {
+            if let Some(_) = self.next_with_suumo_element(element.clone()) {
+                result.push_str(&element.to_string());
+            } else {
+                break;
+            }
+        }
+
+        result
+    }
+
+    pub fn collect_to_string_with_suumo_elements_nth(
+        &mut self,
+        n: usize,
+        elements: impl IntoIterator<Item = SuumoElement>,
+    ) -> String {
+        let mut result = String::new();
+        for (i, element) in elements.into_iter().enumerate() {
+            if i < n {
+                if let Some(_) = self.next_with_suumo_element(element.clone()) {
+                    result.push_str(&element.to_string());
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        result
+    }
 }
 impl Iterator for SuumoState {
-    type Item = SuumoState;
+    type Item = (SuumoState, SuumoElement);
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.next_with_suumo_element(SuumoElement::new())
+        let next_element = SuumoElement::new();
+        self.next_with_suumo_element(next_element.clone())
+            .map(|state| (state, next_element))
     }
 }
 
@@ -209,6 +339,74 @@ mod tests {
         assert_eq!(SuumoElement::SumoNewMoon.to_string(), "スモ🌚");
         assert_eq!(SuumoElement::SuuuumoUp.to_string(), "ス〜〜〜モ⤴🌝");
         assert_eq!(SuumoElement::SuuuumoDown.to_string(), "ス〜〜〜モ⤵🌞");
+    }
+
+    #[test]
+    fn suumo_element_from_string() {
+        assert_eq!(
+            SuumoElement::try_from("あ❗️ スーモ❗️🌚".to_string()),
+            Ok(SuumoElement::ASuumo)
+        );
+        assert_eq!(
+            SuumoElement::try_from("ダン💥".to_string()),
+            Ok(SuumoElement::Dan)
+        );
+        assert_eq!(
+            SuumoElement::try_from("シャーン🎶".to_string()),
+            Ok(SuumoElement::Shaan)
+        );
+        assert_eq!(
+            SuumoElement::try_from("スモ🌝".to_string()),
+            Ok(SuumoElement::SumoFullMoon)
+        );
+        assert_eq!(
+            SuumoElement::try_from("スモ🌚".to_string()),
+            Ok(SuumoElement::SumoNewMoon)
+        );
+        assert_eq!(
+            SuumoElement::try_from("ス〜〜〜モ⤴🌝".to_string()),
+            Ok(SuumoElement::SuuuumoUp)
+        );
+        assert_eq!(
+            SuumoElement::try_from("ス〜〜〜モ⤵🌞".to_string()),
+            Ok(SuumoElement::SuuuumoDown)
+        );
+
+        assert_eq!(
+            SuumoElement::try_from("あ、スーモ！".to_string()),
+            Err("Invalid string: あ、スーモ！".to_string())
+        )
+    }
+
+    #[test]
+    fn test_try_string_to_suumo_elements() {
+        assert_eq!(
+            try_string_to_suumo_elements(
+                "あ❗️ スーモ❗️🌚ダン💥ダン💥ダン💥シャーン🎶スモ🌝スモ🌚スモ🌝スモ🌚スモ🌝スモ🌚ス〜〜〜モ⤴🌝スモ🌚スモ🌝スモ🌚スモ🌝スモ🌚スモ🌝ス〜〜〜モ⤵🌞"
+                    .to_string()
+            ),
+            Ok(vec![
+                SuumoElement::ASuumo,
+                SuumoElement::Dan,
+                SuumoElement::Dan,
+                SuumoElement::Dan,
+                SuumoElement::Shaan,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SuuuumoUp,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SuuuumoDown,
+            ])
+        );
     }
 
     #[test]
@@ -731,5 +929,63 @@ mod tests {
             let mut suumo_state = SuumoState::S19;
             assert_eq!(suumo_state.next_with_suumo_element(element.clone()), None);
         }
+    }
+
+    #[test]
+    fn suumo_state_collect() {
+        let mut suumo_state = SuumoState::new();
+        let collected = suumo_state.collect_to_string_with_suumo_elements(vec![
+            SuumoElement::ASuumo,
+            SuumoElement::Dan,
+            SuumoElement::Dan,
+            SuumoElement::Dan,
+            SuumoElement::Shaan,
+            SuumoElement::SumoFullMoon,
+            SuumoElement::SumoNewMoon,
+            SuumoElement::SumoFullMoon,
+            SuumoElement::SumoNewMoon,
+            SuumoElement::SumoFullMoon,
+            SuumoElement::SumoNewMoon,
+            SuumoElement::SuuuumoUp,
+            SuumoElement::SumoNewMoon,
+            SuumoElement::SumoFullMoon,
+            SuumoElement::SumoNewMoon,
+            SuumoElement::SumoFullMoon,
+            SuumoElement::SumoNewMoon,
+            SuumoElement::SumoFullMoon,
+            SuumoElement::SuuuumoDown,
+        ]);
+        assert_eq!(collected, "あ❗️ スーモ❗️🌚ダン💥ダン💥ダン💥シャーン🎶スモ🌝スモ🌚スモ🌝スモ🌚スモ🌝スモ🌚ス〜〜〜モ⤴🌝スモ🌚スモ🌝スモ🌚スモ🌝スモ🌚スモ🌝ス〜〜〜モ⤵🌞");
+
+        let mut suumo_state = SuumoState::new();
+        let collected = suumo_state.collect_to_string_with_suumo_elements_nth(
+            19,
+            vec![
+                SuumoElement::ASuumo,
+                SuumoElement::Dan,
+                SuumoElement::Dan,
+                SuumoElement::Dan,
+                SuumoElement::Shaan,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SuuuumoUp,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SumoNewMoon,
+                SuumoElement::SumoFullMoon,
+                SuumoElement::SuuuumoDown,
+            ],
+        );
+        assert_eq!(collected, "あ❗️ スーモ❗️🌚ダン💥ダン💥ダン💥シャーン🎶スモ🌝スモ🌚スモ🌝スモ🌚スモ🌝スモ🌚ス〜〜〜モ⤴🌝スモ🌚スモ🌝スモ🌚スモ🌝スモ🌚スモ🌝ス〜〜〜モ⤵🌞");
+
+        let mut suumo_state = SuumoState::new();
+        let collected = suumo_state.collect_to_string_nth(10);
+        assert_eq!(try_string_to_suumo_elements(collected).unwrap().len(), 10);
     }
 }
